@@ -1,0 +1,897 @@
+<!-- Jordyn Hayden CS416 Narrative Visualization Summer 2025 -->
+
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8" />
+
+<title>Global Climate Change and Natural Disasters</title>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script src="https://unpkg.com/d3-svg-annotation@2.5.1/d3-annotation.min.js"></script>
+
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+
+<meta name="description" content="" />
+
+<link rel="icon" href="favicon.png">
+
+<meta name="theme-color" content="#96d35f">
+
+</head>
+
+<body onload="loadData()">
+
+<style>
+
+    main
+    {
+      padding: 40px;
+    }
+
+    /* Page style, for alignment and component separation */
+    .page
+    {
+      display:        flex;
+      flex-direction: column;
+      min-height:     100vh;
+    }
+
+    /* Create a green background color */
+    body
+    {
+      background-color: #9caf883f;
+      color:            #002406;
+    }
+
+    /* Styles for the page header and footer, also a green background */
+    header, footer
+    { 
+      padding: 0px;
+      margin: 0;
+      background-color: #7e936557;
+      color: #2c5933;
+      text-align: center;
+    }
+
+    /* Styles for the container holding the navigation buttons so that they are spaced away from each other */
+    .nav-buttons
+    {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* The look of the next and previous buttons used to navigate between scenes */
+    .next-prev-scene-buttons
+    {
+        background-color: #22370764;
+        color:             white;
+        border:            none;
+        border-radius:     8px;
+        padding:           10px 20px;
+        font-size:         16px;
+        font-weight:       bold;
+        cursor:            pointer;
+        box-shadow:        0 4px 6px #4e4e4e64;
+        visibility:        hidden;
+    }
+
+    /* Behavior of the next/prev buttons when the mouse hovers over */
+    .next-prev-scene-buttons:hover
+    {
+        transform:          scale(1.05);
+        background-color: #2f5a0e64;
+    }
+
+    /* Alignment and spacing for the SVG page component for the data visualization */
+    .svg_container
+    {
+        display:     flex;
+        align-items: center;
+    }
+
+    /* Alignment and spacing for the third scene area of the page. Scene three
+       allows for user exploration so there's some dropdown components and this
+       will allow them to be stacked on each other with some spacing between
+       the components */
+    .scene3Filters
+    {
+        flex-direction: column;
+        display:        flex;
+        margin:         0 auto;
+    }
+
+    /* Styling for the annotation that appears in-scene with the data visualization chart.
+       Green styling to match the rest of the page */
+    .annotation-note-title
+    {
+        font-weight: bold;
+        fill:      green;
+        font-size:   16px;
+    }
+
+    /* Styling for the background of the annotation that appears in-scene with the data visualization chart. */
+    .annotation-note-label 
+    {
+        fill:     grey;
+        font-size: 13px;
+    }
+
+    /* Styling for the line accent of the annotation that appears in-scene with the data visualization chart. */
+    .annotation path 
+    {
+        stroke-width: 3px;
+        stroke:     orange;
+    }
+
+    /* Styling for the data visualization tool tip for scene 3 user exploration. */
+    #tooltip
+    {
+        background:   rgb(235, 235, 235);
+        height:         auto; 
+        border:         1px solid #357b41;
+        opacity:        0; z-index: 9999;
+        position:       absolute; 
+        text-align:     left;  
+        box-shadow:     0 2px 4px rgba(30, 42, 11, 0.323);
+        border-radius:  3px;
+        pointer-events: none;
+        user-select:    none;
+        padding:        8px 12px;
+        white-space:    nowrap;
+        width:          auto;
+        max-width:      none;
+    }
+
+    /* Styling for the data visualization tool tip for scene 3 user exploration. */
+    .dropdown 
+    {
+        position:           relative;
+        display:            inline-block;
+        background-color: #002406;
+        font-size:          medium;
+        color:            #ffffff;
+        margin-bottom:      15px;
+        margin-left:        15px;
+    }
+
+    /* When the page is first loaded, have the text at the bottom fade in. */
+    .page-opacity-anim-fade
+    {
+        opacity:   0;
+        animation: fade 0.8s ease-in forwards;
+    }
+
+    @keyframes fade 
+    {
+        to 
+        {
+            opacity: 1;
+        }
+    }
+
+    /* Try to avoid cursor detection and response for anything else than the chart bars  */
+    text, .axis, .tick 
+    {
+        pointer-events: none;
+        user-select:    none;
+        cursor:         default;
+    }
+
+  </style>
+</body>
+
+  <div class="page">
+  
+    <header>
+      <h1>Global Climate Change and Natural Disasters</h1>
+    </header>
+  
+    <main>
+
+        <div class="svg_container">
+
+            <div id="tooltip" opacity="0"></div>
+            
+            <svg></svg>
+
+            <div class="scene3Filters">
+
+                <select class="dropdown" id="countriesSelection" onchange="storeSelectedCountryForScene3(this.value)">
+                    <option value="" selected>Global</option>
+                </select>
+
+                <select class="dropdown" id="disasterSubtypeSelections" onchange="storeSelectedSubtypeForScene3(this.value)">
+                    <option value="" selected>All Types</option>
+                </select>
+
+            </div>
+        </div>
+    
+        <div id="sceneText" class="page-opacity-anim-fade">
+            <section class="sceneDescription">
+                <h2 id="sceneDescriptionHeading"></h2>
+                <p style="font-size: 22px" id="sceneDescriptionParagraph"></p>
+            </section>
+        </div>
+  
+        <div class="nav-buttons">
+            <button id="prev_button" class="next-prev-scene-buttons">Prev</button>
+            <button id="next_button" class="next-prev-scene-buttons">Next</button>
+        </div>
+    </main>
+  
+    <footer>
+      <p>University of Illinois CS416 Narrative Visualization Summer 2025</p>
+      <p>Jordyn Hayden</p>
+    </footer>
+
+    <script>
+
+        // Global Params
+        var year_global_means           = [] // Holds the temperature deviation data
+        var em_dat                      = [] // Holds global storm data (em dat)
+        var co2_emissions               = [] // Holds global co2 emmisions data
+
+        var scene_index                 = 0; // Holds the narrative visualization state
+        var unique_countries            = [] // Holds the list of use countries
+        var country_selection           = "" // Holds the country selected by the user via the dropdown
+        var disaster_subtypes           = [] // Holds the list of storm subtypes
+        var disaster_subtypes_selection = "" // Holds the user selected storm subtype via the dropdown
+
+        // Constants
+        var SCENE_1 = 0;
+        var SCENE_2 = 1;
+        var SCENE_3 = 2;
+
+        // Annotations for scenes one and two
+        var scene_annotations = 
+        [
+            {
+                // Annotation data
+                note: 
+                {
+                    label: "CO2 emissions have dramatically increased since 1980.",
+                    title: "Global CO2 Emission Increase.",
+                    wrap:  200
+                },
+
+                // Annotation positioning
+                x:  615,
+                y:  45,
+                dy: 0,
+                dx: 0
+            },
+            {
+                // Annotation data
+                note: 
+                {
+                    label: "The global surface temperature has increasingly deviated from previous recorded means.",
+                    title: "Increase in global surface temperature.",
+                    wrap:  200
+                },
+
+                // Annotation positioning
+                x:  650,
+                y:  40,
+                dy: 0,
+                dx: 0
+            }
+        ];
+
+        // loads all the CSV data for the visualization
+        async function loadData(params)
+        {
+            // load the temperature deviation data
+            const dataSource1 = d3.csv("data/year_global-means.csv");
+
+            // load the global, em dat, storm data
+            const dataSource2 = d3.csv("data/em_dat_storms.csv");
+
+            // load the global, co2 emissions per country
+            const dataSource3 = d3.csv("data/annual-co2-emissions-per-country.csv");
+
+            // parse each datasource
+            Promise.all([dataSource1, dataSource2, dataSource3])
+
+            // process datasource after successful load
+            .then(function(data)
+            {
+                // filter the years such that it lies between 1980 and 2024 inclusive
+                year_global_means = data[0]
+                    .filter(d => (d.Year >= 1980 && d.Year < 2025));
+
+                // filter the years such that it lies between 1980 and 2024 inclusive
+                em_dat = data[1]
+                    .filter(d => (d["Start Year"] >= 1980 && d["Start Year"] < 2025));
+
+                // filter the years such that it lies between 1980 and 2024 inclusive
+                // Also filter the analysis on "World" for global data
+                co2_emissions = data[2]
+                    .filter(d => ((d.Year >= 1980 && d.Year < 2025) && d.Entity == "World"));
+
+                // Scene three will allow for the user interaction following the
+                // martini glass template and so one filtering option for self
+                // exploration can be filtering by country. First we need to get a
+                // list of all the unique countries in the dataset
+                unique_countries = new Set();
+                em_dat.forEach(d => 
+                {
+                    if (d["Country"])
+                    {
+                        unique_countries.add(d["Country"]);
+                    }
+                });
+
+                // using this parameter, we will set the data for the scene three
+                // country dropdown 
+                populateCountryDropdown();
+
+                // Scene three will allow for the user interaction following the
+                // martini glass template and so another filtering option for self
+                // exploration can be filtering by storm subtype. First we need to get a
+                // list of all the unique storm subtypes in the dataset
+                disaster_subtypes = new Set();
+                em_dat.forEach(d => 
+                {
+                    if (d["Disaster Subtype"])
+                    {
+                        disaster_subtypes.add(d["Disaster Subtype"]);
+                    }
+                });
+                
+                // Using this parameter, we will set the data for the scene three
+                // storm subtype dropdown
+                populateDisasterSubtypeDropdown();
+
+                // Track the scene being displayed for button navigation
+                // default to scene 1 on load
+                scene_index = SCENE_1;
+
+                // Render the current scene based on scene index
+                renderScene();
+
+                // Button events
+                d3.select("#prev_button").on("click", previousScene);
+                d3.select("#next_button").on("click", nextScene);
+            })
+        }
+
+        // Update the block of text that displays under the data visualization chart
+        // which does serve as an annotation
+        function updateSceneText()
+        {
+            // Get the view components for the text under the visualization charts
+            const sceneTextDiv = document.getElementById("sceneText")
+            const title        = document.getElementById("sceneDescriptionHeading");
+            const text         = document.getElementById("sceneDescriptionParagraph");
+
+            switch (scene_index)
+            {
+                case SCENE_1:
+                    title.textContent = "Rising Global CO2 Emissions";
+                    text.innerHTML = "The Global Carbon Budget (2024) dataset, made publicly available at <a href=\"https://ourworldindata.org/co2-emissions\">OurWorldInDate.org</a>, contains the\n" +
+                    "carbon emissions caused from industries and fossil fuels globally each year. Carbon emissions are carbon dioxide's release into Earth's atmospher and have been known to cause\n" +
+                    "negative impact on the enviornemnt. The chart above visualizes this dataset as a barchart plotting the carbon emissions globally from 1980 to 2024. As shown, the carbon emissions\n" +
+                    "have grown substantially since 1980.<br><br>As individuals, there are several things we can do to minimize carbon emissions ranging from choosing renewable energy sources, reforestation support\n" +
+                    "driving less, reuse, and more. Based on the visualization above that shows that global co2 emissions have risen greatly, one might ask: <strong>what consequences may arise?</strong>\n<br><br>" +
+                    "This narrative visualization seeks to unpack this very question, and by which communicate the important for us as individuals to contribute to limiting the carbon emissions.<br><br>Select 'Next' to navigate\n" +
+                    "to the next scene.";
+                    break;
+                case SCENE_2:
+                    title.textContent = "Global Temperatures Rising";
+                    text.innerHTML    = "<a href=\"https://data.giss.nasa.gov/gistemp/\">NASA's Goddard Institute for Space Studies (GISS) dataset</a> has recorded mean land-surface, air, and sea-surface water\n" +
+                                        "temperatures globally from 1951 to 1980 which serves as a baseline for analysis of global temperatures for years to follow. With this baseline, we can track the global temperature deviations.<br><br>\n" +
+                                        "Increase in temperature is indicated by a positive deviation value, and as shown in the visualization above, which displays the recorded global land-surface air and sea-surface water temperature deviations\n" +
+                                        "from 1980-2024, a trend is revealed that global temperature is <strong style=\"color: rgb(116, 0, 0);\">increasing</strong>.<br><br>Global temperature increases have scientifically been linked\n" +
+                                        "with human activities such as fossil fuel burning, and greenhouse gases which cause the increase in global CO2 emissions shown by the previous scene.<br><br>Select 'Next' to navigate\n" +
+                                        "to the next scene. Select 'Prev' to return to the previous scene";
+                    break;
+                case SCENE_3:
+                    title.textContent = "Increased Storm Frequency";
+                    text.innerHTML = "<a href=\"https://www.emdat.be\">EM-DAT</a>, managed by the Centre for Research on the Epidemiology of Disasters (CRED), is a dataset comprised of data on international disasters from 1900 to now. This dataset includes\n" +
+                                     "worldwide disasters from Natural Diasters such as landslides, hail storms, droughts, floods, volcanic activity, etc.; to Industry Disasters such as chemical spills, explosions, poisoning, radiatoin, etc.; to Transportation\n" +
+                                     "Disasters such as air, sea, rail, or road.<br><br>\n" +
+
+                                     "The visualization above displays the number of Natural Disaster Storms that have occurred globally from 1980 to 2024 and reveals a trend. Namely that the\n" +
+                                     "number of storms yearly is increasing. This increase in storm frequency reveals a similar upwards trend as what was observed previously regarding global surface temperatures.\n" +
+                                     "Although causality cannot be claimed, these trends may suggest that there is a link between global temperatures and storm frequency based on this correlation.\n" +
+                                     "<br><br>As human activities of fossil fuels and industry have cause increases in global CO2 emission, and from which increase in global temperatures and storm frequecies\n" +
+                                     "arise which have drastic costs, it is very important for us to make mindful decisions in our everyday that strive to limit the global CO2 emisisons. This can be done\n" +
+                                     "by choosing renewable energy sources, limiting consumerism and use of disposable items, and driving less.\n" +
+                                     "<br><br>Explore! Hover over bars in the visualization to reveal additional information about impact of the storms that occurred in the corresponding year,\n" +
+                                     "and select from the dropdowns to filter by country and storm subtype to reveal drill-downed trends.<br><br>Select 'Prev' to navigate\n" +
+                                    "to return to the previous scene.";
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // Set the data for the country dropdown for scene three filtering
+        function populateCountryDropdown()
+        {
+            const countriesSelectionDropdown = document.getElementById("countriesSelection");
+            const uniqueCountryDataList = [...unique_countries];
+            uniqueCountryDataList.sort();
+            uniqueCountryDataList.forEach(countryName => 
+            {
+                // Verify valid country name
+                if (countryName)
+                {
+                    // Dynamically create the dropdown selections
+                    const countryToAdd       = document.createElement("option");
+                    countryToAdd.textContent = countryName;
+                    countryToAdd.value       = countryName;
+
+                    // Add the country to the dropdown
+                    countriesSelectionDropdown.appendChild(countryToAdd);
+                }
+            });
+        }
+
+        // Set the data for the storm subtype dropdown for scene three filtering
+        function populateDisasterSubtypeDropdown()
+        {
+            const disasterSubtypeSelectionDropdown = document.getElementById("disasterSubtypeSelections");
+            const stormSubtypeList = [...disaster_subtypes];
+            stormSubtypeList.sort();
+            stormSubtypeList.forEach(stormSubtype => 
+            {
+                if (stormSubtype)
+                {
+                    const stormDropdownOption       = document.createElement("option");
+                    stormDropdownOption.textContent = stormSubtype;
+                    stormDropdownOption.value       = stormSubtype;
+
+                    // Add the subtype to the dropdown
+                    disasterSubtypeSelectionDropdown.appendChild(stormDropdownOption);
+                }
+            });
+        }
+
+        // Render the first scene (c02 emissions globally each year)
+        function renderScene0(data)
+        {
+            // Bar Chart Dimens
+            var margin_top    = 40;
+            var margin_right  = 30;
+            var margin_bottom = 40;
+            var margin_left   = 100;
+            var scene_width   = 1200;
+            var scene_height  = 500;
+
+            // Aggregate the data, accumulate the co2 emissions
+            var aggregated_co2_data = Array.from(
+            d3.rollup
+            (
+                data,
+                emission => 
+                (
+                    {
+                        co2_emission : d3.sum(emission, d => +d["Annual CO₂ emissions"])
+                    }
+                ),
+                year => year["Year"]
+            ),
+            ([year, { co2_emission }]) => ({ year, co2_emission }));
+
+            var max_co2 = d3.max(aggregated_co2_data, d => d.co2_emission);
+            var min_co2 = d3.min(aggregated_co2_data, d => d.co2_emission);
+
+            // SVG object setup
+            var svg = d3.select("svg")
+                .attr("width" , scene_width)
+                .attr("height", scene_height);
+
+            var x = d3.scaleBand()
+                .domain(data.map(d => d["Year"]))
+                .range([margin_left, scene_width  - margin_left - margin_right])
+                .padding(0.2);
+            
+            var y = d3.scaleLinear()
+                .domain([min_co2, max_co2])
+                .range([scene_height - margin_bottom, margin_top]);
+            
+            // X Axis and Tick Marks
+            // Show values every fifth year otherwise it looks too cluttered
+            var axisBottom = d3.axisBottom(x)
+            if (x.domain().length > 25)
+            {
+                axisBottom.tickValues(x.domain().filter((d, i) => i % 5 === 0));
+            }
+
+            var d3_scene_annotations_0 = d3.annotation()
+                                             .annotations([scene_annotations[0]]);
+            // Render an Annotation
+            svg.append("g")
+                .attr("class", "annotation-group")
+                .call(d3_scene_annotations_0);
+
+            // X and Y axis
+            svg.append("g")
+                .attr("transform", `translate(0, ${scene_height - margin_bottom})`)
+                .call(axisBottom);
+            svg.append("g")
+                .attr("transform", `translate(${margin_left}, 0)`)
+                .call(d3.axisLeft(y));
+
+            // Year label
+            svg.append("text")
+                .attr("text-anchor", "end")
+                .attr("x", scene_width / 2)
+                .attr("y", scene_height)
+                .text("Year");
+
+            // Co2 emissions label
+            svg.append("text")
+                .attr("text-anchor", "end")
+                .attr("y", margin_left - 87)
+                .attr("x", margin_left - 250)
+                .attr("transform", "rotate(-90)")
+                .text("CO2 Emissions (tonnes)")
+
+            // Title
+            svg.append("text")
+                .attr("x", scene_width / 2)
+                .attr("y", margin_top  / 5 + 6)
+                .attr("text-anchor", "middle")
+                .style("font-size",  "20px")
+                .style("fill", "#141715")
+                .text("Global Annual CO2 Emissions")
+
+            // Bar chart for co2 data
+            svg.selectAll(".bar")
+                .data(aggregated_co2_data)
+                .enter()
+                .append("rect")
+                    .attr("x",               d => x(d.year))
+                    .attr("y",               d => d.co2_emission >= 0 ? y(d.co2_emission) : y(0))
+                    .attr("height",          d => Math.abs(y(min_co2) - y(d.co2_emission)))
+                    .attr("width",           x.bandwidth())
+                    .attr("fill",            "#2c5933")
+                    .attr("class",           "bar")
+                    .style("cursor",         "pointer")
+                    .style("pointer-events", "all");
+        }
+
+        // Render the second scene (rising global temperatures each year)
+        function renderScene1(data)
+        {
+            // Bar Chart Dimens
+            var margin_top    = 40;
+            var margin_right  = 30;
+            var margin_bottom = 40;
+            var margin_left   = 100;
+            var scene_width   = 1200;
+            var scene_height  = 500;
+
+            // SVG object setup
+            var svg = d3.select("svg")
+                .attr("width" , scene_width)
+                .attr("height", scene_height)
+                .append("g");
+
+            var x = d3.scaleBand()
+                .domain(data.map(d => d.Year))
+                .range([margin_left, scene_width - margin_right - margin_left])
+                .padding(0.2);
+            
+            var y = d3.scaleLinear()
+                .domain([d3.min(data, d => d.Annual) - 0.1, d3.max(data, d => d.Annual)])
+                .nice()
+                .range([scene_height - margin_bottom, margin_top]);
+            
+            // X Axis and Tick Marks
+            // Show values every fifth year otherwise it looks too cluttered
+            var axisBottom = d3.axisBottom(x)
+                .tickValues(x.domain().filter((d, i) => i % 5 === 0));
+            
+            var d3_scene_annotations_1 = d3.annotation()
+                                             .annotations([scene_annotations[1]]);
+            // Render an Annotation
+            svg.append("g")
+                .attr("class", "annotation-group")
+                .call(d3_scene_annotations_1);
+
+            // X and Y axis
+            svg.append("g")
+                .attr("transform", `translate(0, ${scene_height - margin_bottom})`)
+                .call(axisBottom);
+            svg.append("g")
+                .attr("transform", `translate(${margin_left}, 0)`)
+                .call(d3.axisLeft(y));
+
+            // Year label
+            svg.append("text")
+                .attr("text-anchor", "end")
+                .attr("x", scene_width / 2)
+                .attr("y", scene_height)
+                .text("Year");
+
+            // Temperature label
+            svg.append("text")
+                .attr ("text-anchor", "end")
+                .attr ("y", margin_left - 35)
+                .attr ("x", margin_left - 200)
+                .attr ("transform", "rotate(-90)")
+                .text ("Temperature Mean Deviation")
+
+            // Temperature graph title
+            svg.append("text")
+                .attr ("x", scene_width / 2)
+                .attr ("y", margin_top  / 5 + 10)
+                .attr ("text-anchor", "middle")
+                .style("font-size", "20px")
+                .style("fill", "#141715")
+                .text ("Global Land-Surface, Air, and Sea-Surface Water Temperature Deviation")
+            
+            // Render the temperature deviation chart
+            svg.selectAll(".bar")
+                .data(data)
+                .enter()
+                .append("rect")
+                    .attr("x",      d => x(d.Year))
+                    .attr("y",      d => d.Annual >= 0 ? y(d.Annual) : y(0))
+                    .attr("height", d => Math.abs(y(d.Annual) - y(0)))
+                    .attr("width",  x.bandwidth())
+                    .attr("fill",  "#2c5933")
+                    .attr("class", "bar");
+        }
+
+        // Render the third scene (rising annual storm frequency)
+        function renderScene2(data, country, subtype)
+        {
+            // Bar chart Dimens
+            var margin_top    = 40;
+            var margin_right  = 30;
+            var margin_bottom = 40;
+            var margin_left   = 120;
+            var scene_width   = 1200;
+            var scene_height  = 500;
+
+            // Ensure the data is parsed as an integer
+            data.forEach(d => d["Annual Disaster Count"] = +d["Annual Disaster Count"]);
+
+            var countryName = (country != "") ? country : "Global";
+            var typeName    = (subtype != "") ? subtype : "All Storms";
+
+            // Pre-filtered data
+            var preFilter = data;
+
+            // Verify a country was selected as a filter from the dropdown
+            if (country != "")
+            {
+                data = data.filter(storm_frequency_data => (storm_frequency_data["Country"] == country));
+            }
+
+            // Verify a subtype was selected as a filter from the dropdown
+            if (subtype != "")
+            {
+                data = data.filter(storm_frequency_data => (storm_frequency_data["Disaster Subtype"] == subtype));
+            }
+
+            var aggregated = Array.from
+            (
+            d3.rollup
+            (
+                data,
+                scene_3_data => 
+                (
+                    {
+                        count:      d3.sum(scene_3_data, entry => +entry["Annual Disaster Count"]),
+                        deaths:     d3.sum(scene_3_data, entry => +entry["Total Deaths"]), 
+                        injured:    d3.sum(scene_3_data, entry => +entry["No. Injured"]), 
+                        affected:   d3.sum(scene_3_data, entry => +entry["No. Affected"]), 
+                        homeless:   d3.sum(scene_3_data, entry => +entry["No. Homeless"]), 
+                        recstrCost: d3.sum(scene_3_data, entry => +entry["Reconstruction Costs ('000 US$)"]), 
+                        insurDmg:   d3.sum(scene_3_data, entry => +entry["Insured Damage ('000 US$)"])
+                    }
+                ),
+                d => d["Start Year"]
+            ),
+            ([category, {count, deaths, injured, affected, homeless, recstrCost, insurDmg }]) => ({count, category, deaths, injured, affected, homeless, recstrCost, insurDmg }));
+            
+            // Compute max and min, used for axis bounds
+            var max = d3.max(aggregated, entry => entry.count)
+            var min = d3.min(aggregated, entry => entry.count)
+
+            // SVG object setup
+            var svg = d3.select("svg")
+                .attr("width" , scene_width)
+                .attr("height", scene_height);
+
+            var x = d3.scaleBand()
+                .domain(preFilter.map(d => d["Start Year"]))
+                .range([margin_left, scene_width  - margin_left - margin_right])
+                .padding(0.2);
+            
+            var y = d3.scaleLinear()
+                .domain([min, max])
+                .range([scene_height - margin_bottom, margin_top]);
+            
+            // X Axis and Tick Marks
+            // Show values every fifth year otherwise it looks too cluttered
+            var axisBottom = d3.axisBottom(x)
+                .tickValues(x.domain().filter((d, i) => i % 5 === 0));
+            
+            // X and Y axis for bar graph
+            svg.append("g")
+                .attr("transform", `translate(0, ${scene_height - margin_bottom})`)
+                .call(axisBottom);            
+            svg.append("g")
+                .attr("transform", `translate(${margin_left}, 0)`)
+                .call(d3.axisLeft(y));
+
+            // X axis label
+            svg.append("text")
+                .text("Year")
+                .attr("text-anchor", "end")
+                .attr("y", margin_left - 87)
+                .attr("x", margin_left - 250);
+
+            // Y axis label
+            svg.append("text")
+                .text("Storm Count")
+                .attr("text-anchor", "end")
+                .attr("y", margin_left - 75)
+                .attr("x", margin_left - 250)
+                .attr("transform", "rotate(-90)");
+
+            // Scene Title
+            svg.append("text")
+                .text(countryName + " Annual Storms Count")
+                .attr("x", scene_width / 2)
+                .attr("y", margin_top / 5 + 10)
+                .attr("text-anchor", "middle")
+                .style("font-size", "20px")
+                .style("fill", "#141715")
+            var tooltip = d3.select("#tooltip");
+  
+            // Rendering the bar chart
+            svg.selectAll(".bar")
+                .data(aggregated)
+                .enter()
+                .append("rect")
+                    .attr("x",       d => x(d.category))
+                    .attr("y",       d => d.count >= 0 ? y(d.count) : y(0))
+                    .attr("height",  d => Math.abs(y(min) - y(d.count)))
+                    .attr("width",   x.bandwidth())
+                    .attr("fill",  "#2c5933")
+                    .attr("class", "bar")
+                    .on("mouseover", function(d, i)
+                        {
+                            let tooltipTxt = "";
+                            tooltip.width = 175;
+                            tooltipTxt =    "Year:         " +   i.category + "<br>" + 
+                                            "Total Deaths: " +   i.deaths   + "<br>" + 
+                                            "No. Injured:  " +   i.injured  + "<br>" + 
+                                            "No. Affected: " +   i.affected + "<br>" + 
+                                            "No. Homeless: " +   i.homeless + "<br>" +
+                                            "Reconstruction Costs ('000 US$): " + i.recstrCost + "<br>" + 
+                                            "Insured Damage ('000 US$):  "      + i.insurDmg + "<br>";
+
+                            tooltip.style("opacity", 1)
+                                    .style("left", (d.pageX + 15) + "px")
+                                    .style("top" , (d.pageY - 25) + "px")
+                                    .html(tooltipTxt);
+                        })
+                        .on("mouseout", function()
+                        {
+                            tooltip.style("opacity", 0);
+                        })
+                    .raise();
+        }
+
+        // Clear the currently rendering scene, to replace it with a new
+        function clearScene()
+        {
+            var svg = d3.select("svg");
+
+            svg.selectAll("*").remove();
+        }
+
+        // Render the current scene according to the current scene state variable
+        function renderScene()
+        {
+            clearScene();
+
+            updateSceneDependentViewStates();
+
+            // Render the correct scene based on the current scene index
+            switch (scene_index)
+            {
+                case 0:
+                    // Rendering the co2 emissions visualization (martini stem)
+                    renderScene0(co2_emissions);
+                    break;
+                case 1:
+                    // Rendering the temperature increasing visualization (martini stem)
+                    renderScene1(year_global_means);
+                    break;
+                case 2:
+                    // Rendering the storm frequency increae (user exploration)
+                    renderScene2(em_dat, country_selection, disaster_subtypes_selection);
+                    break;
+                default:
+                    break;
+            }
+
+            // Update the block of text under the visualization (serves as annotation)
+            updateSceneText();
+        }
+
+        // Decrememnt the scene index and render the new scene when the
+        // previous button is selected
+        function previousScene()
+        {
+            scene_index = scene_index - 1;
+
+            if (scene_index < 0)
+            {
+                // avoid neg indices
+                scene_index = 0;
+            }
+
+            renderScene();
+        }
+
+        // Update the visibility of the country and storm subtype dropdowns which
+        // should only be visible on scene three for user exploration
+        function updateSceneDependentViewStates()
+        {
+            // Capture elements
+            var scene3CountryDropdown  = document.getElementById('countriesSelection');
+            var scene3DisasterDropdown = document.getElementById('disasterSubtypeSelections');
+            var nextButton             = document.getElementById('next_button');
+            var prevButton             = document.getElementById('prev_button');
+
+            // Scene 3 specifics
+            scene3CountryDropdown.style.visibility  = (scene_index == 0 || scene_index == 1) ? "hidden" : "visible";
+            scene3DisasterDropdown.style.visibility = (scene_index == 0 || scene_index == 1) ? "hidden" : "visible";
+
+            // Button visibility. On scene 1 the previous button should not be visible, and
+            // the next button shouldn't be visible on the last page
+            nextButton.style.visibility = (scene_index == 2) ? "hidden" : "visible";
+            prevButton.style.visibility = (scene_index == 0) ? "hidden" : "visible";
+        }
+
+        // Increment the scene index and render the new scene when the
+        // previous button is selected
+        function nextScene()
+        {
+            scene_index = scene_index + 1;
+
+            if (scene_index > 2)
+            {
+                // avoid out of bound indices
+                scene_index = 2;
+            }
+
+            renderScene();
+        }
+
+        // Store the country selected by the user via the dropdown as a global
+        // variable and re-render the scene
+        function storeSelectedCountryForScene3(selection)
+        {
+            country_selection = selection;
+
+            renderScene();
+        }
+
+        // Store the storm subtype selected by the user via the dropdown as a global
+        // variable and re-render the scene
+        function storeSelectedSubtypeForScene3(selection)
+        {
+            disaster_subtypes_selection = selection;
+
+            renderScene();
+        }
+    </script>
+  </div>
+</html>
